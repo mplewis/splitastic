@@ -90,3 +90,17 @@ describe('encodeBytes', () => {
     ).toEqual(['light', 'glad', 'object', 'announce', 'embark', 'wish'])
   })
 })
+
+describe('encodeBytesCheckdropsum', () => {
+  it('encodes bytes including the proper checksum and drop byte count', () => {
+    // A word represents 11 bits of data
+    // The first 9 bits of the checkdropsum are reserved for the checksum (mod 512)
+    // Sum: 1141, % 512 = 117 checksum => 001110101
+    // The last 2 bits represent the drop byte count
+    // Bytes are encoded in groups of 4
+    // To encode 5 bytes, we pad the end with 0x00 bytes and drop 3 bytes later (11)
+    // Expected checksum: 00111010111 => 471 => "depart"
+    const toEncode = [0xc0, 0xff, 0xee, 0xca, 0xfe]
+    // expect(encodeBytesCheckdropsum(toEncode)).toEqual([])
+  })
+})

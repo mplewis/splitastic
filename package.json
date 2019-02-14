@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@types/jest": "^23.1.4",
+    "@types/ramda": "^0.25.50",
     "@vue/cli-plugin-babel": "^3.4.0",
     "@vue/cli-plugin-e2e-cypress": "^3.4.0",
     "@vue/cli-plugin-pwa": "^3.4.0",
@@ -35,6 +36,7 @@
     "eslint-plugin-standard": "^4.0.0",
     "lint-staged": "^8.1.0",
     "prettier-tslint": "^0.4.2",
+    "ramda": "^0.26.1",
     "stylus": "^0.54.5",
     "stylus-loader": "^3.0.2",
     "ts-jest": "^23.0.0",
