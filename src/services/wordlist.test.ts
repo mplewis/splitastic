@@ -1,4 +1,4 @@
-import { parseWords } from './wordlist'
+import { parseWords, parseWordsChecksum } from './wordlist'
 
 describe('parseWords', () => {
   it('parses English words to the expected bytes', () => {
@@ -17,5 +17,61 @@ describe('parseWords', () => {
     expect(
       parseWords(['light', 'glad', 'oblige', 'announce', 'embark', 'wish'])
     ).toEqual(new Uint8Array([0x81, 0x8c, 0x52, 0x60, 0x09, 0x49, 0x0b, 0xf2]))
+  })
+})
+
+describe('parseWordsChecksum', () => {
+  /**
+   * 252 252 232 229 0 65 48 162 248 225 230 208 65 135 56 77 212 21 210 94 68
+   *   198 157 79 58 42 242 111 240 176 250 12
+   * sum: 4764
+   * mod 2048: 668
+   * checksum: "fatal"
+   */
+  const words = [
+    'woman',
+    'trap',
+    'defense',
+    'able',
+    'another',
+    'chunk',
+    'wedding',
+    'august',
+    'reflect',
+    'dose',
+    'degree',
+    'beach',
+    'staff',
+    'purse',
+    'nut',
+    'dynamic',
+    'crunch',
+    'fault',
+    'demand',
+    'fiscal',
+    'orbit',
+    'vague',
+    'march',
+    'pact'
+  ]
+  const subject = (checksum: string) =>
+    parseWordsChecksum([...words, checksum])
+
+  describe('when the checksum is correct', () => {
+    const checksum = 'fatal'
+
+    it('parses properly', () => {
+      const bytes = subject(checksum)
+      const sum = bytes.reduce((a: number, n: number) => a + n, 0)
+      expect(sum).toEqual(4764)
+    })
+  })
+
+  describe('when the checksum is incorrect', () => {
+    const checksum = 'fatigue'
+
+    it('throws the expected error', () => {
+      expect(() => subject(checksum)).toThrowError(/Checksum mismatch/)
+    })
   })
 })

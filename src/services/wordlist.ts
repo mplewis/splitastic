@@ -3,7 +3,7 @@ import wordlist from '@/vendor/wordlists/english.ts'
 function to11Bit (word: string) {
   const index = wordlist.indexOf(word)
   if (index === -1) {
-    throw new Error(`Could not find ${word}`)
+    throw new Error(`Could not find "${word}"`)
   }
   return index
 }
@@ -59,4 +59,15 @@ export function parseWords (words: string[]): Uint8Array {
     .map((b8s) => b8s.map((b8) => parseInt(b8, 2)))
     .reduce((all, nums) => all.concat(nums), [])
   return new Uint8Array(byteNums)
+}
+
+export function parseWordsChecksum (words: string[]): Uint8Array {
+  const checksumWord = words[words.length - 1]
+  const toParse = words.slice(0, words.length - 1)
+  const bytes = parseWords(toParse)
+  const checksum = bytes.reduce((a, n) => a + n, 0) % 2048
+  if (checksum !== to11Bit(checksumWord)) {
+    throw new Error(`Checksum mismatch: "${checksumWord}"`)
+  }
+  return bytes
 }
