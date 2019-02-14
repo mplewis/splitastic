@@ -13,12 +13,36 @@ function toBin (i: number) {
   return (i >>> 0).toString(2)
 }
 
+function to8BitBin (i: number) {
+  return leftPad('0', 8, toBin(i))
+}
+
+function to11BitBin (i: number) {
+  return leftPad('0', 11, toBin(i))
+}
+
 function leftPad (filler: string, len: number, item: string) {
   let result = item
   while (result.length < len) {
     result = filler + result
   }
   return result
+}
+
+function padTo (len: number, item: string) {
+  return leftPad('0', len, item)
+}
+
+function truncate (len: number, str: string) {
+  return str.slice(0, len)
+}
+
+function truncate32 (str: string) {
+  return truncate(32, str)
+}
+
+function parseBin (str: string) {
+  return parseInt(str, 2)
 }
 
 function inGroupsOf (n: number, items: any[]) {
@@ -48,15 +72,12 @@ function splitEvery (n: number, str: string) {
 }
 
 export function parseWords (words: string[]): Uint8Array {
-  const asBin = words
-    .map(to11Bit)
-    .map(toBin)
-    .map((b) => leftPad('0', 11, b))
+  const asBin = words.map(to11Bit).map(to11BitBin)
   const byteNums = inGroupsOf(3, asBin)
     .map((g) => g.join(''))
-    .map((b33) => b33.slice(0, 32))
+    .map(truncate32)
     .map((b32) => splitEvery(8, b32))
-    .map((b8s) => b8s.map((b8) => parseInt(b8, 2)))
+    .map((b8s) => b8s.map(parseBin))
     .reduce((all, nums) => all.concat(nums), [])
   return new Uint8Array(byteNums)
 }
@@ -70,4 +91,14 @@ export function parseWordsChecksum (words: string[]): Uint8Array {
     throw new Error(`Checksum mismatch: "${checksumWord}"`)
   }
   return bytes
+}
+
+export function encodeBytes (bytes: Uint8Array): string[] {
+  return inGroupsOf(4, Array.from(bytes))
+    .map((g) => g.map(to8BitBin).join(''))
+    .map((b32) => b32 + '0')
+    .map((b33) => splitEvery(11, b33))
+    .map((b11s) => b11s.map(parseBin))
+    .reduce((all, group) => all.concat(group), [])
+    .map((wordNum) => wordlist[wordNum])
 }

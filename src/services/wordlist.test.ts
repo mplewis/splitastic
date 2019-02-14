@@ -1,4 +1,4 @@
-import { parseWords, parseWordsChecksum } from './wordlist'
+import { encodeBytes, parseWords, parseWordsChecksum } from './wordlist'
 
 describe('parseWords', () => {
   it('parses English words to the expected bytes', () => {
@@ -16,6 +16,11 @@ describe('parseWords', () => {
      */
     expect(
       parseWords(['light', 'glad', 'oblige', 'announce', 'embark', 'wish'])
+    ).toEqual(new Uint8Array([0x81, 0x8c, 0x52, 0x60, 0x09, 0x49, 0x0b, 0xf2]))
+
+    // The last word in every 4-byte group loses its LSB, so it could be one of two words
+    expect(
+      parseWords(['light', 'glad', 'object', 'announce', 'embark', 'witness'])
     ).toEqual(new Uint8Array([0x81, 0x8c, 0x52, 0x60, 0x09, 0x49, 0x0b, 0xf2]))
   })
 })
@@ -73,5 +78,15 @@ describe('parseWordsChecksum', () => {
     it('throws the expected error', () => {
       expect(() => subject(checksum)).toThrowError(/Checksum mismatch/)
     })
+  })
+})
+
+describe('encodeBytes', () => {
+  it('encodes bytes as words', () => {
+    expect(
+      encodeBytes(
+        new Uint8Array([0x81, 0x8c, 0x52, 0x60, 0x09, 0x49, 0x0b, 0xf2])
+      )
+    ).toEqual(['light', 'glad', 'object', 'announce', 'embark', 'wish'])
   })
 })
