@@ -3,6 +3,7 @@ import wordlist from '@/vendor/wordlists/english.ts'
 import {
   all,
   curry,
+  dropLast,
   join,
   map,
   pipe,
@@ -10,20 +11,11 @@ import {
   split,
   splitEvery,
   sum,
-  tap,
   unnest
 } from 'ramda'
 
 const CHECKSUM_BITS = 9
 const DROP_BITS = 2
-
-// function toNum (word: string) {
-//   const index = wordlist.indexOf(word)
-//   if (index === -1) {
-//     throw new Error(`Could not find "${word}"`)
-//   }
-//   return index
-// }
 
 const toBin = curry((binLen: number, i: number) => {
   // tslint:disable no-bitwise
@@ -42,63 +34,30 @@ function toWord (num: number) {
   return word
 }
 
+function toNum (word: string) {
+  const index = wordlist.indexOf(word)
+  if (index === -1) {
+    throw new Error(`Could not find "${word}"`)
+  }
+  return index
+}
+
 const leftPad = curry((filler: string, len: number, item: string) => {
   let result = item
   while (result.length < len) result = filler + result
   return result
 })
 
-// const zeroPad = leftPad('0')
-
-// const truncate = curry((len: number, str: string) => {
-//   return str.slice(0, len)
-// })
-
 function parseBin (str: string) {
   return parseInt(str, 2)
 }
-
-// export function parseWords (words: string[]): Uint8Array {
-//   const asBin = words
-//     .map(toNum)
-//     .map(toBin)
-//     .map(zeroPad(11))
-//   const byteNums = inGroupsOf(3, asBin)
-//     .map((g) => g.join(''))
-//     .map(truncate(32))
-//     .map(splitEvery(8))
-//     .map((b8s) => b8s.map(parseBin))
-//     .reduce((all, nums) => all.concat(nums), [])
-//   return new Uint8Array(byteNums)
-// }
-
-// export function parseWordsChecksum (words: string[]): Uint8Array {
-//   const checksumWord = words[words.length - 1]
-//   const toParse = words.slice(0, words.length - 1)
-//   const bytes = parseWords(toParse)
-//   const checksum = bytes.reduce((a, n) => a + n, 0) % 2048
-//   if (checksum !== toNum(checksumWord)) {
-//     throw new Error(`Checksum mismatch: "${checksumWord}"`)
-//   }
-//   return bytes
-// }
-
-// export function encodeBytes (bytes: Uint8Array): string[] {
-//   return inGroupsOf(4, Array.from(bytes))
-//     .map((g) => g.map(zeroPad(8)).join(''))
-//     .map((b32) => b32 + '0')
-//     .map(splitEvery(11))
-//     .map((b11s) => b11s.map(parseBin))
-//     .reduce((all, group) => all.concat(group), [])
-//     .map((wordNum) => wordlist[wordNum])
-// }
 
 function ensureLength4 (nums: number[]): number[] {
   while (nums.length < 4) nums.push(0x00)
   return nums
 }
 
-function checkWord (bytes: Uint8Array): string {
+function genCheckWord (bytes: Uint8Array): string {
   const dropNum = 2 ** DROP_BITS
   const toDrop = (dropNum - (bytes.length % dropNum)) % dropNum
   const mod = 2 ** CHECKSUM_BITS
@@ -111,7 +70,7 @@ function checkWord (bytes: Uint8Array): string {
 }
 
 export function encodeBytes (bytes: Uint8Array): string[] {
-  const cw = checkWord(bytes)
+  const cw = genCheckWord(bytes)
   const nums = Array.from(bytes)
   const bin33s = pipe(
     splitEvery(4),
@@ -141,4 +100,55 @@ export function encodeBytes (bytes: Uint8Array): string[] {
   }
 
   return words.concat(cw)
+}
+
+function checkVals (checkWord: string) {
+  const bits = pipe(
+    toNum,
+    toBin(11)
+  )(checkWord)
+  const dropBits = bits.slice(0, 2)
+  const checkBits = bits.slice(2, 11)
+  const dropBytes = parseBin(dropBits)
+  const checksum = parseBin(checkBits)
+  return { checksum, dropBytes }
+}
+
+export function decodeWords (words: string[]): Uint8Array {
+  const dataWords = words.slice(0, words.length - 1)
+  const checkWord = words[words.length - 1]
+  const { checksum, dropBytes } = checkVals(checkWord)
+
+  const bin32s = pipe(
+    map(toNum),
+    map(toBin(11)),
+    join(''),
+    split(''),
+    splitEvery(33),
+    map(join('')),
+    map(dropLast(1))
+  )(dataWords)
+  if (!all((bin32) => bin32.length === 32, bin32s)) {
+    throw new Error(
+      `Expected binary chunks for 3-word groups to eventually have length 32, got: ${bin32s}`
+    )
+  }
+
+  const data = pipe(
+    join(''),
+    split(''),
+    splitEvery(8),
+    map(join('')),
+    map(parseBin),
+    (b) => dropLast<number>(dropBytes)(b)
+  )(bin32s)
+
+  const actualSum = sum(data) % 2 ** CHECKSUM_BITS
+  if (actualSum !== checksum) {
+    throw new Error(
+      `Checksum mismatch: expected ${checksum}, got ${actualSum}`
+    )
+  }
+
+  return new Uint8Array(data)
 }
